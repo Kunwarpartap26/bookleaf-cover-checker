@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BookLeaf Cover Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+/* ── Reset + Base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0a0a0a;
+  --surface:   #141414;
+  --surface2:  #1c1c1c;
+  --border:    #2a2a2a;
+  --gold:      #c9a84c;
+  --gold-lt:   #e8c26a;
+  --gold-dim:  rgba(201,168,76,0.15);
+  --pass:      #22c55e;
+  --review:    #ef4444;
+  --text:      #f5f5f5;
+  --text-2:    #888;
+  --text-3:    #555;
+  --radius:    10px;
+  --font:      'Inter', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+a { color: var(--gold); text-decoration: none; }
+
+/* ── Animations ──────────────────────────────────────────────── */
+@keyframes pass-glow {
+  0%,100% { box-shadow: 0 0 10px rgba(34,197,94,.3); }
+  50%     { box-shadow: 0 0 28px rgba(34,197,94,.7); }
+}
+@keyframes review-pulse {
+  0%,100% { box-shadow: 0 0 10px rgba(239,68,68,.3); }
+  50%     { box-shadow: 0 0 22px rgba(239,68,68,.6); }
+}
+@keyframes drop-glow {
+  0%,100% { border-color: var(--gold);    box-shadow: 0 0 16px rgba(201,168,76,.2); }
+  50%     { border-color: var(--gold-lt); box-shadow: 0 0 32px rgba(201,168,76,.5); }
+}
+@keyframes slide-up {
+  from { opacity:0; transform:translateY(30px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes bar-fill {
+  from { width:0%; }
+  to   { width: var(--score); }
+}
+@keyframes row-fade {
+  from { opacity:0; background:rgba(201,168,76,.06); }
+  to   { opacity:1; background:transparent; }
+}
+@keyframes dot-pulse {
+  0%,100% { opacity:1; }
+  50%     { opacity:.35; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position:  200% center; }
+}
+
+/* ── Navbar ──────────────────────────────────────────────────── */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 60px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--gold);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nav-brand .logo-icon {
+  width: 32px; height: 32px;
+  fill: var(--gold);
+}
+.nav-brand .logo-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.3px;
+}
+.nav-brand .logo-name span { color: var(--gold); }
+.nav-brand .logo-sub {
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 400;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.nav-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.nav-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--pass);
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+.nav-dot.offline { background: var(--review); animation: none; }
+
+/* ── Main content ────────────────────────────────────────────── */
+.main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* ── Section heading ─────────────────────────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 14px;
+}
+
+/* ── Upload Zone ─────────────────────────────────────────────── */
+.upload-section { margin-bottom: 32px; }
+
+.drop-zone {
+  border: 2px dashed var(--gold);
+  border-radius: 16px;
+  padding: 52px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+  position: relative;
+}
+.drop-zone:hover {
+  background: var(--gold-dim);
+  border-color: var(--gold-lt);
+}
+.drop-zone.drag-over {
+  animation: drop-glow 1s ease-in-out infinite;
+  background: rgba(201,168,76,.08);
+}
+.drop-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.drop-icon { margin-bottom: 16px; }
+.drop-icon svg { width: 52px; height: 52px; fill: var(--gold); opacity: .85; }
+
+.drop-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.drop-sub {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 20px;
+}
+.drop-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 240px;
+  margin: 0 auto 20px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.drop-divider::before, .drop-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.btn-browse {
+  display: inline-block;
+  padding: 10px 28px;
+  border: 1.5px solid var(--gold);
+  border-radius: 8px;
+  color: var(--gold);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  transition: background .15s, color .15s;
+  pointer-events: none; /* click handled by parent input */
+}
+.drop-zone:hover .btn-browse {
+  background: var(--gold);
+  color: #000;
+}
+
+/* ── Upload progress ─────────────────────────────────────────── */
+.upload-progress {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: 14px;
+}
+.upload-progress.visible { display: flex; }
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  flex-shrink: 0;
+}
+.progress-text {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.progress-filename {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ── Result Card ─────────────────────────────────────────────── */
+.result-card {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 24px;
+  animation: slide-up .4s ease;
+}
+.result-card.visible { display: block; }
+
+.result-inner {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 0;
+}
+@media (max-width: 640px) {
+  .result-inner { grid-template-columns: 1fr; }
+}
+
+.result-thumb {
+  background: #0d0d0d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-right: 1px solid var(--border);
+}
+.result-thumb img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+.result-thumb .no-thumb {
+  width: 100%;
+  aspect-ratio: 5/8;
+  background: var(--surface2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: 12px;
+  text-align: center;
+}
+
+.result-body {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.result-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.result-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.result-isbn {
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: monospace;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: .4px;
+  width: fit-content;
+}
+.status-badge.pass {
+  background: rgba(34,197,94,.12);
+  color: var(--pass);
+  border: 1px solid rgba(34,197,94,.3);
+  animation: pass-glow 2.5s ease-in-out infinite;
+}
+.status-badge.review {
+  background: rgba(239,68,68,.1);
+  color: var(--review);
+  border: 1px solid rgba(239,68,68,.3);
+  animation: review-pulse 2s ease-in-out infinite;
+}
+
+.confidence-wrap { width: 100%; }
+.confidence-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+.confidence-label strong { color: var(--text); }
+.bar-track {
+  height: 7px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-lt));
+  animation: bar-fill .9s cubic-bezier(.25,.1,.25,1) forwards;
+  width: 0%;
+}
+.bar-fill.pass-color  { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.bar-fill.review-color{ background: linear-gradient(90deg, #b91c1c, #ef4444); }
+
+.issues-list { display: flex; flex-direction: column; gap: 6px; }
+.issue-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  background: rgba(239,68,68,.06);
+  border: 1px solid rgba(239,68,68,.15);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.issue-icon { flex-shrink: 0; margin-top: 1px; }
+
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.chip.ok {
+  border-color: rgba(34,197,94,.3);
+  color: var(--pass);
+  background: rgba(34,197,94,.06);
+}
+
+/* ── Drive Watcher bar ───────────────────────────────────────── */
+.watcher-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin-bottom: 32px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.watcher-bar .wl { display: flex; align-items: center; gap: 8px; }
+.watcher-bar .wr { color: var(--text-3); font-size: 11.5px; }
+.watcher-bar .mini-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--pass);
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+.watcher-bar .mini-dot.offline { background: var(--text-3); animation: none; }
+
+/* ── Results table ───────────────────────────────────────────── */
+.table-section { margin-top: 16px; }
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+thead th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.02);
+}
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,.025); }
+tbody tr.new-row { animation: row-fade .6s ease; }
+tbody td {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  vertical-align: middle;
+}
+.td-isbn {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.td-title {
+  font-weight: 500;
+  color: var(--text);
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.td-author { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-time { font-size: 11.5px; white-space: nowrap; }
+.td-conf { font-weight: 500; }
+
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+.pill-pass   { background: rgba(34,197,94,.12);  color: var(--pass);   border: 1px solid rgba(34,197,94,.25); }
+.pill-review { background: rgba(239,68,68,.1);   color: var(--review); border: 1px solid rgba(239,68,68,.25); }
+
+.action-link {
+  font-size: 12px;
+  color: var(--gold);
+  border: 1px solid rgba(201,168,76,.3);
+  border-radius: 5px;
+  padding: 3px 9px;
+  transition: background .15s;
+}
+.action-link:hover { background: var(--gold-dim); }
+
+/* Empty state */
+.empty-state {
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--text-3);
+}
+.empty-state p { font-size: 14px; margin-top: 8px; }
+.empty-state .empty-icon svg { width: 40px; height: 40px; fill: var(--text-3); opacity: .4; }
+
+/* ── Error toast ─────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1a0a0a;
+  border: 1px solid rgba(239,68,68,.4);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #fca5a5;
+  max-width: 340px;
+  z-index: 999;
+  animation: slide-up .3s ease;
+  display: none;
+}
+.toast.visible { display: block; }
+
+/* ── Footer ──────────────────────────────────────────────────── */
+footer {
+  text-align: center;
+  padding: 24px;
+  font-size: 12px;
+  color: var(--text-3);
+  border-top: 1px solid var(--border);
+}
+footer span { color: var(--gold); }
+</style>
+</head>
+
+<body>
+
+<!-- ── Navbar ──────────────────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="nav-brand">
+    <svg class="logo-icon" viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-6 3a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm4 13H8v-.8C8 15.4 9.8 14 12 14s4 1.4 4 3.2V18z"/></svg>
+    <div>
+      <div class="logo-name"><span>BookLeaf</span> Cover Checker</div>
+      <div class="logo-sub">21st Century Emily Dickinson Award</div>
+    </div>
+  </div>
+  <div class="nav-status">
+    <div class="nav-dot" id="navDot"></div>
+    <span id="navStatusText">System Active</span>
+  </div>
+</nav>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- Upload -->
+  <section class="upload-section">
+    <div class="section-label">Upload Cover File</div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg" />
+
+      <div class="drop-icon">
+        <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+      </div>
+      <div class="drop-title">Drop your book cover here</div>
+      <div class="drop-sub">PDF or PNG · Named as <code style="color:var(--gold);font-size:12px;">ISBN_text.pdf</code></div>
+      <div class="drop-divider">or</div>
+      <button class="btn-browse" tabindex="-1">Browse File</button>
+    </div>
+
+    <div class="upload-progress" id="uploadProgress">
+      <div class="spinner"></div>
+      <div class="progress-text">
+        Analysing <span class="progress-filename" id="progressFilename"></span>…
+        &nbsp;Running OCR and badge zone detection
+      </div>
+    </div>
+  </section>
+
+  <!-- Result card -->
+  <div class="result-card" id="resultCard">
+    <div class="result-inner">
+      <div class="result-thumb">
+        <img id="resultThumb" src="" alt="Annotated cover" style="display:none" />
+        <div class="no-thumb" id="noThumb">No preview available</div>
+      </div>
+      <div class="result-body">
+        <div class="result-meta">
+          <div class="result-title" id="resultTitle">—</div>
+          <div class="result-isbn" id="resultIsbn">—</div>
+        </div>
+
+        <div class="status-badge" id="statusBadge"></div>
+
+        <div class="confidence-wrap">
+          <div class="confidence-label">
+            <span>Confidence Score</span>
+            <strong id="confValue">—</strong>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" id="confBar"></div>
+          </div>
+        </div>
+
+        <div class="issues-list" id="issuesList"></div>
+
+        <div class="chips" id="confirmChips"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drive watcher -->
+  <div class="watcher-bar" id="watcherBar">
+    <div class="wl">
+      <div class="mini-dot" id="watcherDot"></div>
+      <span id="watcherText">Checking Drive watcher status…</span>
+    </div>
+    <div class="wr" id="watcherRight"></div>
+  </div>
+
+  <!-- Recent submissions -->
+  <section class="table-section">
+    <div class="section-label">Recent Submissions</div>
+    <div class="table-wrap">
+      <div id="tableContainer">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.35C18 2.53 15.5.5 12.35.5c-1.85 0-3.47.83-4.56 2.12L6.5 4 5.27 2.62C4.18 1.33 2.56.5.71.5-.71.5 0 1.21 0 2s.71 1.5 1.5 1.5h.18L3 5H2C.9 5 0 5.9 0 7v13c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
+          </div>
+          <p>No covers processed yet. Upload one above to get started.</p>
+        </div>
+        <table id="resultsTable" style="display:none">
+          <thead>
+            <tr>
+              <th>ISBN</th>
+              <th>Book Title</th>
+              <th>Author</th>
+              <th>Status</th>
+              <th>Confidence</th>
+              <th>Time</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<footer>
+  BookLeaf Publishing &nbsp;·&nbsp; <span>21st Century Emily Dickinson Award</span> &nbsp;·&nbsp;
+  bookleafpub.in | India | USA | UK
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   BookLeaf Cover Checker — Dashboard JS
+   ══════════════════════════════════════════════════════════════ */
+
+const $ = id => document.getElementById(id);
+
+// ── Upload via drag & drop or click ─────────────────────────────────────────
+
+const dropZone    = $('dropZone');
+const fileInput   = $('fileInput');
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('drag-over');
+});
+['dragleave', 'dragend'].forEach(ev =>
+  dropZone.addEventListener(ev, () => dropZone.classList.remove('drag-over'))
+);
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const files = e.dataTransfer.files;
+  if (files.length) handleFile(files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  const allowed = ['application/pdf','image/png','image/jpeg'];
+  if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|png|jpe?g)$/i)) {
+    showToast('Unsupported file type. Please upload a PDF or PNG/JPG cover file.');
+    return;
+  }
+
+  $('uploadProgress').classList.add('visible');
+  $('progressFilename').textContent = file.name;
+  $('resultCard').classList.remove('visible');
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  fetch('/api/upload', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      $('uploadProgress').classList.remove('visible');
+      if (data.error) {
+        showToast('Analysis error: ' + data.error);
+        return;
+      }
+      renderResult(data);
+      refreshTable();
+      // Reset input so the same file can be re-uploaded
+      fileInput.value = '';
+    })
+    .catch(err => {
+      $('uploadProgress').classList.remove('visible');
+      showToast('Network error — is the server running? ' + err.message);
+    });
+}
+
+// ── Render result card ────────────────────────────────────────────────────────
+
+function renderResult(d) {
+  const card = $('resultCard');
+  card.classList.add('visible');
+
+  $('resultTitle').textContent = d.book_title || 'Unknown Title';
+  $('resultIsbn').textContent  = 'ISBN ' + (d.isbn || '—');
+
+  // Thumbnail
+  if (d.annotation_url) {
+    const img = $('resultThumb');
+    img.src = d.annotation_url;
+    img.style.display = 'block';
+    $('noThumb').style.display = 'none';
+  } else {
+    $('resultThumb').style.display = 'none';
+    $('noThumb').style.display = 'flex';
+  }
+
+  // Status badge
+  const badge = $('statusBadge');
+  const isPass = d.status === 'PASS';
+  badge.className = 'status-badge ' + (isPass ? 'pass' : 'review');
+  badge.innerHTML = isPass
+    ? '<span>✅</span> PASS'
+    : '<span>⚠️</span> REVIEW NEEDED';
+
+  // Confidence bar
+  const score = d.confidence || 0;
+  $('confValue').textContent = score + '%';
+  const bar = $('confBar');
+  bar.style.setProperty('--score', score + '%');
+  bar.className = 'bar-fill ' + (isPass ? 'pass-color' : 'review-color');
+  // Re-trigger animation
+  bar.style.width = '0%';
+  requestAnimationFrame(() => {
+    bar.style.transition = 'width .9s cubic-bezier(.25,.1,.25,1)';
+    bar.style.width = score + '%';
+  });
+
+  // Issues
+  const issuesList = $('issuesList');
+  issuesList.innerHTML = '';
+  const issues = d.issues || [];
+  if (issues.length) {
+    issues.forEach(issue => {
+      const el = document.createElement('div');
+      el.className = 'issue-item';
+      el.innerHTML = `<span class="issue-icon">❌</span><span>${escHtml(issue)}</span>`;
+      issuesList.appendChild(el);
+    });
+  }
+
+  // Chips
+  const chips = $('confirmChips');
+  chips.innerHTML = '';
+  const airtableOk = !!d.airtable_id;
+  const emailOk    = !!d.email_sent;
+
+  chips.innerHTML = `
+    <div class="chip ${airtableOk ? 'ok' : ''}">
+      ${airtableOk ? '✓' : '○'} Logged to Airtable
+    </div>
+    <div class="chip ${emailOk ? 'ok' : ''}">
+      ${emailOk ? '✓' : '○'} Email sent
+    </div>
+    <div class="chip ${d.resolution_ok ? 'ok' : ''}">
+      ${d.resolution_ok ? '✓' : '✗'} Resolution
+    </div>
+  `;
+}
+
+// ── Drive watcher status ──────────────────────────────────────────────────────
+
+function refreshWatcherStatus() {
+  fetch('/api/status')
+    .then(r => r.json())
+    .then(data => {
+      const dot  = $('watcherDot');
+      const text = $('watcherText');
+      const right = $('watcherRight');
+
+      if (data.running) {
+        dot.className = 'mini-dot';
+        text.textContent = '🔄 Watching Google Drive folder for new covers';
+        const ago = data.seconds_ago != null
+          ? `Last checked ${data.seconds_ago}s ago`
+          : 'Polling every 30 seconds';
+        right.textContent = ago + (data.files_seen ? ` · ${data.files_seen} file(s) processed` : '');
+      } else {
+        dot.className = 'mini-dot offline';
+        const reason = data.error || 'Not configured';
+        text.textContent = '⚠️ Drive watcher inactive — ' + reason;
+        right.textContent = 'Configure GOOGLE_DRIVE_FOLDER_ID in .env to enable';
+      }
+
+      // Navbar dot
+      $('navDot').className = data.running ? 'nav-dot' : 'nav-dot offline';
+      $('navStatusText').textContent = data.running ? 'System Active' : 'Drive Offline';
+    })
+    .catch(() => {
+      $('watcherText').textContent = '⚠️ Could not reach server';
+    });
+}
+
+// ── Results table ─────────────────────────────────────────────────────────────
+
+let _lastResultCount = -1;
+
+function refreshTable() {
+  fetch('/api/results')
+    .then(r => r.json())
+    .then(records => {
+      const tbody    = $('tableBody');
+      const empty    = $('emptyState');
+      const table    = $('resultsTable');
+      const isNew    = records.length !== _lastResultCount;
+      _lastResultCount = records.length;
+
+      if (!records.length) {
+        empty.style.display = 'block';
+        table.style.display = 'none';
+        return;
+      }
+      empty.style.display = 'none';
+      table.style.display = 'table';
+
+      tbody.innerHTML = '';
+      records.forEach((r, idx) => {
+        const isPass  = r.status === 'PASS';
+        const timeStr = fmtTime(r.timestamp);
+        const tr = document.createElement('tr');
+        if (isNew && idx === 0) tr.className = 'new-row';
+
+        tr.innerHTML = `
+          <td class="td-isbn">${escHtml(r.isbn || '—')}</td>
+          <td class="td-title" title="${escHtml(r.book_title)}">${escHtml(r.book_title || '—')}</td>
+          <td class="td-author" title="${escHtml(r.author_name)}">${escHtml(r.author_name || '—')}</td>
+          <td><span class="pill ${isPass ? 'pill-pass' : 'pill-review'}">${escHtml(r.status)}</span></td>
+          <td class="td-conf" style="color:${isPass ? 'var(--pass)' : 'var(--review)'}">${r.confidence ?? '—'}%</td>
+          <td class="td-time">${timeStr}</td>
+          <td>${r.annotation_url
+              ? `<a class="action-link" href="${escHtml(r.annotation_url)}" target="_blank">View</a>`
+              : '<span style="color:var(--text-3);font-size:12px;">—</span>'
+            }</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    })
+    .catch(e => console.warn('Table refresh failed:', e));
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts);
+    return d.toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+  } catch { return ts; }
+}
+
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+let _toastTimer = null;
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('visible'), 5000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+refreshWatcherStatus();
+refreshTable();
+setInterval(refreshWatcherStatus, 10000);
+setInterval(refreshTable,         15000);
+</script>
+
+</body>
+</html>

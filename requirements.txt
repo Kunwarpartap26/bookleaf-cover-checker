@@ -1,0 +1,10 @@
+flask==3.0.3
+opencv-python==4.9.0.80
+pytesseract==0.3.10
+Pillow==10.3.0
+pdf2image==1.17.0
+google-api-python-client==2.131.0
+google-auth==2.29.0
+google-auth-httplib2==0.2.0
+pyairtable==2.3.3
+python-dotenv==1.0.1
